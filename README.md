@@ -69,7 +69,37 @@ No server files or environment secrets are needed for this prototype. Content ch
 
 Use this option when you want a phone to load the native app from your server while testing. It serves a development JavaScript bundle, not the production web app.
 
-1. Install a matching SDK 58 development build on the phone (see EAS below), or use compatible Expo Go.
+### Using Dockerfile.dev directly (remote Linux server)
+
+The entrypoint runs `npx expo login --browser` before starting Metro. Build and run with a terminal and a persistent login volume:
+
+```bash
+docker build -f Dockerfile.dev -t lfc-jahi-dev .
+docker run -d -it --name lfc-metro \
+  --network host \
+  -e REACT_NATIVE_PACKAGER_HOSTNAME=YOUR_SERVER_IP \
+  -v lfc-expo-session:/root/.expo \
+  lfc-jahi-dev
+docker logs --tail=200 -f lfc-metro
+```
+
+Replace `YOUR_SERVER_IP` with the server address reachable from your iPhone. Host networking makes Expo's temporary localhost login callback available on the Linux server; port publishing (`-p`) is not used in this mode.
+
+Copy the authentication link from the logs. Before opening it, find `PORT` in its `redirect_uri=http://localhost:PORT/auth/callback`. On your laptop, keep this SSH tunnel running (replace the placeholders):
+
+```bash
+ssh -N -L PORT:localhost:PORT USER@SERVER
+```
+
+Open the link in your laptop's browser and complete authentication. Metro starts after login succeeds and prints the Expo Go launch link and QR code into the same logs. Scan with your iPhone Camera. Expo Go must support SDK 58 and the phone must reach the server on port 8081.
+
+Login runs on each startup by default. After saving a session, add `-e EXPO_LOGIN_ON_START=0` when creating the container to start Metro immediately. Use that option too if you want to test without logging in. The volume retains the session when replacing the container.
+
+For QR redraw, run `docker attach lfc-metro`, press **C**, then detach with **Ctrl+P**, **Ctrl+Q**. A custom command such as `docker run --rm -it lfc-jahi-dev npx expo login --no-browser` bypasses startup login and runs directly.
+
+### Using Compose (optional)
+
+1. Install Expo Go compatible with SDK 58 on the iPhone. The container defaults to Expo Go. For a custom development build, use the alternate command below.
 2. Copy `.env.example` to `.env` and set `METRO_HOST` to an IP/hostname reachable from the phone. Do not use `localhost` or the Docker container IP.
 3. Start the separate development Compose file:
 
@@ -81,13 +111,50 @@ Metro listens on TCP 8081 and prints the launch link. For LAN testing, the phone
 
 For an HTTPS development hostname, set `METRO_PROXY_URL=https://metro.yourdomain.com`, set `METRO_HOST=metro.yourdomain.com`, and reverse proxy that separate hostname to port 8081. Use the launch URL emitted by Expo CLI, rather than the production web URL.
 
-To explicitly use Expo Go with the development container:
+To use a custom development build with the development container:
 
 ```bash
-docker compose -f compose.dev.yaml run --rm --service-ports metro npx expo start --go --lan --port 8081
+docker compose -f compose.dev.yaml run --rm --service-ports metro npx expo start --dev-client --lan --port 8081
 ```
 
 Stop an already-running `metro` service before using this alternate command, so the port is free. Expo Go must support SDK 58. Background playback and lock-screen behaviour must be verified in your own native build.
+
+### Expo browser login on a remote Linux server
+
+Login is optional for a directly reachable Metro server. To sign in, run this in an interactive SSH terminal:
+
+```bash
+docker compose -f compose.dev.yaml --profile auth run --rm --build expo-login
+```
+
+This runs `npx expo login --browser` and prints an authentication link. Leave it running. Find the temporary port in the link's `redirect_uri=http://localhost:PORT/auth/callback`. On your laptop, open a second terminal and forward that same port (replace `PORT`, `USER`, and `SERVER`):
+
+```bash
+ssh -N -L PORT:localhost:PORT USER@SERVER
+```
+
+Open the printed authentication link in your laptop's browser and complete login. Keep the tunnel open until the CLI reports success. The login service uses host networking for this localhost callback on Linux; no public callback port is needed. The `expo-session` Docker volume shares the saved session with Metro and survives container rebuilds. Do not use `docker compose down -v` if you want to retain it.
+
+For username/password login directly in the SSH terminal instead:
+
+```bash
+docker compose -f compose.dev.yaml --profile auth run --rm expo-login npx expo login --no-browser
+```
+
+### Show the QR code and launch link
+
+```bash
+docker compose -f compose.dev.yaml up -d --build --force-recreate metro
+docker compose -f compose.dev.yaml logs --tail=200 -f metro
+```
+
+The service has a TTY and does not set `CI`, so Expo prints the QR code and launch link in its startup output. If you need to redraw them, attach to the interactive terminal:
+
+```bash
+docker compose -f compose.dev.yaml attach metro
+```
+
+Press **C** to redraw the QR code. Detach with **Ctrl+P**, then **Ctrl+Q**. Scan with the iPhone Camera app and open in Expo Go. `METRO_HOST` must be reachable from the iPhone on port 8081, or configure the HTTPS Metro proxy described above. Expo login does not make an unreachable server accessible. If the App Store Expo Go version does not support SDK 58, use a matching iOS development build instead.
 
 ### Metro startup troubleshooting
 

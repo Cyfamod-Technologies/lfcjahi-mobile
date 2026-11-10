@@ -10,3 +10,21 @@ services:
       EXPO_PACKAGER_PROXY_URL: ${METRO_PROXY_URL:-}
     stdin_open: true
     tty: true
+    volumes:
+      - expo-session:/root/.expo
+
+  # Linux server: browser login's localhost callback is reachable via SSH forwarding.
+  expo-login:
+    profiles: ['auth']
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    network_mode: host
+    command: ['npx', 'expo', 'login', '--browser']
+    stdin_open: true
+    tty: true
+    volumes:
+      - expo-session:/root/.expo
+
+volumes:
+  expo-session:
