@@ -1,0 +1,12 @@
+services:
+  metro:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - '8081:8081'
+    environment:
+      REACT_NATIVE_PACKAGER_HOSTNAME: ${METRO_HOST:?Set METRO_HOST to the server IP or hostname reachable from the phone}
+      EXPO_PACKAGER_PROXY_URL: ${METRO_PROXY_URL:-}
+    stdin_open: true
+    tty: true

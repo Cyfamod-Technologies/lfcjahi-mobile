@@ -1,0 +1,6 @@
+node_modules
+dist
+native-bundles
+.expo
+package-lock.json
+.openai

@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "LFC Jahi Media",
+    "slug": "lfc-jahi-media",
+    "version": "1.0.0",
+    "scheme": "lfcjahi",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/church-logo.png",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cyfamod.lfcjahi.media"
+    },
+    "android": {
+      "package": "com.cyfamod.lfcjahi.media"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/church-logo.png",
+      "name": "LFC Jahi Media",
+      "shortName": "LFC Jahi"
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": true,
+          "enableBackgroundRecording": false
+        }
+      ]
+    ]
+  }
+}

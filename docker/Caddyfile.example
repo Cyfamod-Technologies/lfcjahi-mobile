@@ -1,0 +1,8 @@
+# Install Caddy on your host and replace this domain with your own.
+app.example.com {
+    reverse_proxy 127.0.0.1:8080
+}
+# Optional SEPARATE development host, only for a restricted test environment:
+# metro.example.com {
+#     reverse_proxy 127.0.0.1:8081
+# }

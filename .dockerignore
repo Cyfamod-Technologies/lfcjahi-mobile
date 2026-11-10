@@ -1,0 +1,14 @@
+node_modules
+.expo
+dist
+.git
+android
+ios
+*.zip
+.env
+.env.*
+!.env.example
+npm-debug.log*
+
+native-bundles
+.openai
