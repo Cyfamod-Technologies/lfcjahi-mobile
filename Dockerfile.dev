@@ -1,7 +1,6 @@
 # Native phone testing through Metro. Not a production deployment.
 FROM node:24-bookworm-slim
 WORKDIR /app
-ENV CI=1
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .

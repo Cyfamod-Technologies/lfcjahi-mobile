@@ -89,6 +89,21 @@ docker compose -f compose.dev.yaml run --rm --service-ports metro npx expo start
 
 Stop an already-running `metro` service before using this alternate command, so the port is free. Expo Go must support SDK 58. Background playback and lock-screen behaviour must be verified in your own native build.
 
+### Metro startup troubleshooting
+
+After changing the development Dockerfile or Metro configuration, rebuild and recreate the service:
+
+```bash
+docker compose -f compose.dev.yaml up -d --build --force-recreate metro
+docker compose -f compose.dev.yaml logs -f metro
+```
+
+The development image does not set `CI`: CI mode disables Metro's file watching and reloads. Source files are copied into this image, so host edits still require a rebuild.
+
+`invalid asset file path: .env` means an HTTP request reached Metro's asset handler for an environment file. It does not mean the app needs an `.env` asset. Such requests can come from automated probes; check your reverse proxy access logs to identify the caller. `metro.config.js` returns 404 for these requests before asset parsing. Keep `.env` excluded by `.dockerignore`.
+
+The React Native DevTools download warning is separate: Expo uses its fallback when the container cannot download the latest tools. Check the server/container's outbound connectivity, DNS and proxy settings if you need the latest DevTools.
+
 ## Build an installable Android app
 
 EAS uses your Expo account. Review the app name, bundle IDs in `app.json` and icon before registering/building. The package identifier currently uses `com.cyfamod.lfcjahi.media`; change it if you use a different organization identifier.
