@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-COPY --chmod=755 entrypoint.sh /usr/local/bin/entrypoint.sh
+# COPY --chmod=755 entrypoint.sh /usr/local/bin/entrypoint.sh
 EXPOSE 8081
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+# ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["npx", "expo", "start", "--go", "--lan", "--port", "8081"]
