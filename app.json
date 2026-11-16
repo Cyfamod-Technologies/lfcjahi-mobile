@@ -12,7 +12,32 @@
       "bundleIdentifier": "com.cyfamod.lfcjahi.media"
     },
     "android": {
-      "package": "com.cyfamod.lfcjahi.media"
+      "package": "com.cyfamod.lfcjahi.media",
+      "permissions": [
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ],
+      "versionCode": 3,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "category": ["BROWSABLE", "DEFAULT"],
+          "data": [
+            {
+              "scheme": "https",
+              "host": "lfcjahi.com",
+              "pathPrefix": "/messages/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.lfcjahi.com",
+              "pathPrefix": "/messages/"
+            }
+          ]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -31,7 +56,34 @@
           "enableBackgroundPlayback": true,
           "enableBackgroundRecording": false
         }
+      ],
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#080c13",
+          "image": "./assets/church-logo.png",
+          "imageWidth": 76,
+          "resizeMode": "contain"
+        }
+      ],
+      [
+        "expo-file-system",
+        {
+          "enableFileSharing": true,
+          "supportsOpeningDocumentsInPlace": true
+        }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "4bc7da12-b340-4e21-9a9a-6d4fbdb21d60"
+      }
+    }
   }
 }

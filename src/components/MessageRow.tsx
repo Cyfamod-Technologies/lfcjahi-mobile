@@ -9,6 +9,9 @@ export const artwork = [
   require('../../assets/pastor2.jpg'),
   require('../../assets/pastor3.png'),
 ];
+export function messageArtwork(message: Message) {
+  return message.imageUrl ? { uri: message.imageUrl } : artwork[message.image] || artwork[0];
+}
 export function MessageRow({ message, onPress }: { message: Message; onPress: () => void }) {
   const c = useTheme();
   return (
@@ -27,7 +30,7 @@ export function MessageRow({ message, onPress }: { message: Message; onPress: ()
       })}
     >
       <Image
-        source={artwork[message.image]}
+        source={messageArtwork(message)}
         accessibilityIgnoresInvertColors
         style={{ width: 63, height: 70, borderRadius: 12 }}
       />

@@ -1,0 +1,11 @@
+{
+  "file": "lfc-jahi-media-1.0.0-3.apk",
+  "package": "com.cyfamod.lfcjahi.media",
+  "version": "1.0.0",
+  "versionCode": "3",
+  "sizeBytes": 98132637,
+  "sha256": "1c1603214cd7a103f25f7a6df2c1ab9bbfb3bf92e249f0f5f0b811a27df931d3",
+  "apkSignatureVerified": true,
+  "certificateMatchesWebsite": true,
+  "downloadUrl": "https://expo.dev/artifacts/eas/LklPpFpwzG3Cg9LLsLrITLz66wWkq5vz-bHLgwK_bss.apk"
+}

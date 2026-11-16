@@ -1,5 +1,6 @@
 import { Alert, Linking, Share } from 'react-native';
 export function dateLabel(date: string, weekday = false) {
+  if (!date) return 'Date unavailable';
   return new Date(date + 'T12:00:00Z').toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'long',
@@ -8,6 +9,7 @@ export function dateLabel(date: string, weekday = false) {
   });
 }
 export function shortDate(date: string) {
+  if (!date) return 'Date unavailable';
   return new Date(date + 'T12:00:00Z').toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'short',

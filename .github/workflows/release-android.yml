@@ -1,0 +1,45 @@
+name: Release Android to Google Play
+
+on:
+  push:
+    branches: [prod]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: play-store-release
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/prod'
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    name: Build AAB and submit to internal testing
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24.3.0
+          cache: npm
+      - name: Check Expo authentication is configured
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo '::error::Add the EXPO_TOKEN repository secret before releasing.'
+            exit 1
+          fi
+      - run: npm ci
+      - name: Queue signed build and automatic Play submission
+        run: npx --yes eas-cli@latest build --platform android --profile production --auto-submit --non-interactive --no-wait
+      - name: Explain release status
+        run: |
+          echo '### Android release queued' >> "$GITHUB_STEP_SUMMARY"
+          echo 'EAS is building the AAB and will submit that exact build to Google Play internal testing. This workflow confirms queueing only; check the build and submission links in the previous step for the final result.' >> "$GITHUB_STEP_SUMMARY"

@@ -46,3 +46,8 @@ native-bundles/
 .env.*
 !.env.example
 .openai/
+
+# Signed Android release artifacts
+/releases/*.aab
+
+/releases/*.apk

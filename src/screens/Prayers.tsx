@@ -3,9 +3,8 @@ import { useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card, Eyebrow, Icon, Section, Txt, useTheme } from '../components/UI';
 import { fonts } from '../theme';
-import { dateLabel, openUrl, shareText } from '../lib';
+import { dateLabel, shareText } from '../lib';
 import { PrayerGuide } from '../types';
-import resources from '../data/resources.json';
 export function Prayers({
   guides,
   guide,
@@ -35,35 +34,45 @@ export function Prayers({
             One heart. One voice. Standing on His Word.
           </Txt>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Open ${guides[0].title} for ${dateLabel(guides[0].date)}`}
-          onPress={() => onGuide(guides[0])}
-        >
-          <LinearGradient colors={['#302a49', '#1b1d35']} style={{ padding: 25, borderRadius: 23 }}>
-            <Txt style={{ color: '#c4b4e4', fontSize: 10, letterSpacing: 1.6 }}>
-              NIGHT PRAYER GUIDE
-            </Txt>
-            <View style={{ position: 'absolute', right: 25, top: 68 }}>
-              <Icon name="moon-outline" size={55} color="#bda6df" />
-            </View>
-            <Txt
-              style={{
-                fontSize: 31,
-                lineHeight: 38,
-                color: '#f6f0fc',
-                fontFamily: fonts.heavy,
-                marginVertical: 23,
-              }}
+        <Txt style={{ color: c.muted, fontSize: 11, marginBottom: 16 }}>
+          Prayer guides · Dated for your prayer time.
+        </Txt>
+        {guides.length > 0 && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${guides[0].title} for ${dateLabel(guides[0].date)}`}
+            onPress={() => onGuide(guides[0])}
+          >
+            <LinearGradient
+              colors={['#302a49', '#1b1d35']}
+              style={{ padding: 25, borderRadius: 23 }}
             >
-              Let your faith{'\n'}find its voice.
-            </Txt>
-            <Txt style={{ fontSize: 13, color: '#d0c5e0' }}>{dateLabel(guides[0].date, true)}</Txt>
-            <Txt style={{ fontSize: 11, color: '#b1a4c7', marginTop: 8 }}>
-              {guides[0].intercessions.length} intercessions · Scripture included →
-            </Txt>
-          </LinearGradient>
-        </Pressable>
+              <Txt style={{ color: '#c4b4e4', fontSize: 10, letterSpacing: 1.6 }}>
+                NIGHT PRAYER GUIDE
+              </Txt>
+              <View style={{ position: 'absolute', right: 25, top: 68 }}>
+                <Icon name="moon-outline" size={55} color="#bda6df" />
+              </View>
+              <Txt
+                style={{
+                  fontSize: 31,
+                  lineHeight: 38,
+                  color: '#f6f0fc',
+                  fontFamily: fonts.heavy,
+                  marginVertical: 23,
+                }}
+              >
+                Let your faith{'\n'}find its voice.
+              </Txt>
+              <Txt style={{ fontSize: 13, color: '#d0c5e0' }}>
+                {dateLabel(guides[0].date, true)}
+              </Txt>
+              <Txt style={{ fontSize: 11, color: '#b1a4c7', marginTop: 8 }}>
+                {guides[0].intercessions.length} intercessions · Scripture included →
+              </Txt>
+            </LinearGradient>
+          </Pressable>
+        )}
         <Section title="Your prayer guides" />
         {guides.map((g) => (
           <Pressable
@@ -103,9 +112,6 @@ export function Prayers({
         <Txt style={{ color: c.muted, fontSize: 13, lineHeight: 23, marginVertical: 25 }}>
           Let the Word lead your prayer. Open a guide and pray at your own pace.
         </Txt>
-        <Pressable accessibilityRole="link" onPress={() => openUrl(resources.prayerResources)}>
-          <Txt style={{ color: c.accent, fontSize: 13 }}>More prayer resources →</Txt>
-        </Pressable>
       </>
     );
   const count = guide.intercessions.filter((p) => prayed.includes(guide.id + ':' + p.id)).length;
@@ -147,7 +153,7 @@ export function Prayers({
           <View
             style={{
               height: 4,
-              width: `${(count / guide.intercessions.length) * 100}%`,
+              width: `${(count / Math.max(guide.intercessions.length, 1)) * 100}%`,
               backgroundColor: c.purple,
               borderRadius: 5,
             }}

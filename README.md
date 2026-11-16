@@ -4,16 +4,29 @@ A native-component conversion of the LFC Jahi mobile prototype for Android, iOS 
 
 ## Included
 
-- Home, searchable message library, Sunday/Midweek filters, saved favourites and Connect.
+- Home, searchable message library, service filters from the API, saved favourites.
 - Audio streaming with `expo-audio`, mini-player, full player, seek slider, pause, rewind, next and native sharing.
 - Playback configured for silent mode and background playback, with native lock-screen metadata.
 - Dedicated Prayers tab with the five supplied intercessions for **Thursday, 5 November 2026**; expandable scriptures, prayer progress, reset and sharing.
 - Persistent light/dark theme, saved messages and prayer progress on each device.
 - Local artwork and bundled fonts; no runtime font CDN dependency.
 - Production Docker web image, optional Docker Metro server and EAS build profiles.
-- Winning Care, Follow-up and District sections are excluded. Home cells open the existing website directory.
+- Four focused tabs: Home, Messages, Prayers and Saved. Service filters open in a compact selector.
 
-This is a self-contained frontend prototype. Five selected sermons and one prayer guide are bundled; it does not automatically synchronize all website messages. Audio streams from the existing public LFC Jahi media URLs. Favourites and prayer progress are local to a device, without account sync. “Audio file” opens the original MP3 using the device/browser; it is not an offline-download manager. Shiloh and supplementary prayer collections open their existing links.
+Messages and speaker artwork synchronize with the public backend. Responses are cached on the device for offline browsing; streaming undownloaded audio requires a connection. Pull down to refresh or use Retry after an error. An empty successful response clears older content. Favourites and prayer progress stay on the device without account sync. Download saves audio on the device inside the app for offline playback, with progress and success feedback.
+
+Prayer guides are bundled because the backend has no public prayer endpoint. Their dates are shown explicitly. Shiloh, fellowship directories and external prayer-resource links are excluded from the mobile interface.
+
+## Backend configuration
+
+Copy `.env.example` to `.env`, retaining these public build settings:
+
+```dotenv
+EXPO_PUBLIC_API_URL=https://api.lfcjahi.com
+EXPO_PUBLIC_SITE_URL=https://lfcjahi.com
+```
+
+Use an origin without `/api`. No API key or admin credentials are required for `/api/media`. These variables are embedded in the application bundle and must never contain secrets. Defaults match the frontend production origins. For a local backend, use an HTTPS hostname or LAN IP reachable from the phone; `localhost` on a phone points to that phone. Reload after changing `.env`; installed apps require a new build/update. EAS profiles explicitly supply production origins; change the selected profile to target staging. Docker uses build arguments for web and environment variables for Metro.
 
 ## Run locally
 
@@ -38,138 +51,26 @@ For web development:
 npm run web
 ```
 
-## Deploy to your server with Docker (production web)
+## Docker web build
 
-Docker hosts the **web version** of the same React Native code. Native Android/iOS apps are installed on phones; they are not served from Docker. A web URL is opened in a browser, not pasted into Expo Go.
-
-On a server with Docker Engine and the Docker Compose plugin:
+Docker serves the web version. Native apps are installed on phones.
 
 ```bash
-cp .env.example .env
-# Edit WEB_PORT if needed; keep WEB_BIND_ADDRESS=127.0.0.1 with a host reverse proxy.
-docker compose up -d --build
+docker build --build-arg EXPO_PUBLIC_API_URL=https://api.lfcjahi.com --build-arg EXPO_PUBLIC_SITE_URL=https://lfcjahi.com -t lfc-jahi-web .
+docker run -d --name lfc-jahi-web -p 127.0.0.1:8080:8080 lfc-jahi-web
 curl http://127.0.0.1:8080/health
 ```
 
-The web build runs in an unprivileged Nginx container on internal port 8080. Dependencies install with `npm ci`; the image build runs TypeScript and the Expo web export. The container includes an HTTP health check and restarts automatically.
+Forward your HTTPS reverse proxy to port 8080. Public URLs are embedded during the build. Published messages and directory edits load without rebuilding; bundled prayer changes require a rebuild.
 
-Point your domain's DNS to the server. Configure your existing HTTPS reverse proxy to forward to `127.0.0.1:8080`. A host Caddy example is in `docker/Caddyfile.example`; replace `app.example.com` with your real domain. If your reverse proxy runs in a separate container, put both services on a shared Docker network and proxy to `web:8080` instead of host loopback.
-
-For direct LAN testing without a reverse proxy, set `WEB_BIND_ADDRESS=0.0.0.0` and open `http://SERVER_IP:8080` in your phone's browser. Sharing and other browser APIs work best over HTTPS.
-
-Update after changing code or prayer content:
-
-```bash
-docker compose up -d --build
-```
-
-No server files or environment secrets are needed for this prototype. Content changes are included during the build; rebuilding is required.
-
-## Run Metro in Docker (native development testing)
-
-Use this option when you want a phone to load the native app from your server while testing. It serves a development JavaScript bundle, not the production web app.
-
-### Using Dockerfile.dev directly (remote Linux server)
-
-The entrypoint runs `npx expo login --browser` before starting Metro. Build and run with a terminal and a persistent login volume:
+## Docker Metro testing
 
 ```bash
 docker build -f Dockerfile.dev -t lfc-jahi-dev .
-docker run -d -it --name lfc-metro \
-  --network host \
-  -e REACT_NATIVE_PACKAGER_HOSTNAME=YOUR_SERVER_IP \
-  -v lfc-expo-session:/root/.expo \
-  lfc-jahi-dev
-docker logs --tail=200 -f lfc-metro
+docker run --rm -it -p 8081:8081 -e REACT_NATIVE_PACKAGER_HOSTNAME=YOUR_SERVER_IP -e EXPO_PUBLIC_API_URL=https://api.lfcjahi.com -e EXPO_PUBLIC_SITE_URL=https://lfcjahi.com lfc-jahi-dev
 ```
 
-Replace `YOUR_SERVER_IP` with the server address reachable from your iPhone. Host networking makes Expo's temporary localhost login callback available on the Linux server; port publishing (`-p`) is not used in this mode.
-
-Copy the authentication link from the logs. Before opening it, find `PORT` in its `redirect_uri=http://localhost:PORT/auth/callback`. On your laptop, keep this SSH tunnel running (replace the placeholders):
-
-```bash
-ssh -N -L PORT:localhost:PORT USER@SERVER
-```
-
-Open the link in your laptop's browser and complete authentication. Metro starts after login succeeds and prints the Expo Go launch link and QR code into the same logs. Scan with your iPhone Camera. Expo Go must support SDK 58 and the phone must reach the server on port 8081.
-
-Login runs on each startup by default. After saving a session, add `-e EXPO_LOGIN_ON_START=0` when creating the container to start Metro immediately. Use that option too if you want to test without logging in. The volume retains the session when replacing the container.
-
-For QR redraw, run `docker attach lfc-metro`, press **C**, then detach with **Ctrl+P**, **Ctrl+Q**. A custom command such as `docker run --rm -it lfc-jahi-dev npx expo login --no-browser` bypasses startup login and runs directly.
-
-### Using Compose (optional)
-
-1. Install Expo Go compatible with SDK 58 on the iPhone. The container defaults to Expo Go. For a custom development build, use the alternate command below.
-2. Copy `.env.example` to `.env` and set `METRO_HOST` to an IP/hostname reachable from the phone. Do not use `localhost` or the Docker container IP.
-3. Start the separate development Compose file:
-
-```bash
-docker compose -f compose.dev.yaml up --build
-```
-
-Metro listens on TCP 8081 and prints the launch link. For LAN testing, the phone must be able to reach `http://METRO_HOST:8081`. Restrict development access to your testers or VPN. WebSockets must be forwarded if you use a reverse proxy.
-
-For an HTTPS development hostname, set `METRO_PROXY_URL=https://metro.yourdomain.com`, set `METRO_HOST=metro.yourdomain.com`, and reverse proxy that separate hostname to port 8081. Use the launch URL emitted by Expo CLI, rather than the production web URL.
-
-To use a custom development build with the development container:
-
-```bash
-docker compose -f compose.dev.yaml run --rm --service-ports metro npx expo start --dev-client --lan --port 8081
-```
-
-Stop an already-running `metro` service before using this alternate command, so the port is free. Expo Go must support SDK 58. Background playback and lock-screen behaviour must be verified in your own native build.
-
-### Expo browser login on a remote Linux server
-
-Login is optional for a directly reachable Metro server. To sign in, run this in an interactive SSH terminal:
-
-```bash
-docker compose -f compose.dev.yaml --profile auth run --rm --build expo-login
-```
-
-This runs `npx expo login --browser` and prints an authentication link. Leave it running. Find the temporary port in the link's `redirect_uri=http://localhost:PORT/auth/callback`. On your laptop, open a second terminal and forward that same port (replace `PORT`, `USER`, and `SERVER`):
-
-```bash
-ssh -N -L PORT:localhost:PORT USER@SERVER
-```
-
-Open the printed authentication link in your laptop's browser and complete login. Keep the tunnel open until the CLI reports success. The login service uses host networking for this localhost callback on Linux; no public callback port is needed. The `expo-session` Docker volume shares the saved session with Metro and survives container rebuilds. Do not use `docker compose down -v` if you want to retain it.
-
-For username/password login directly in the SSH terminal instead:
-
-```bash
-docker compose -f compose.dev.yaml --profile auth run --rm expo-login npx expo login --no-browser
-```
-
-### Show the QR code and launch link
-
-```bash
-docker compose -f compose.dev.yaml up -d --build --force-recreate metro
-docker compose -f compose.dev.yaml logs --tail=200 -f metro
-```
-
-The service has a TTY and does not set `CI`, so Expo prints the QR code and launch link in its startup output. If you need to redraw them, attach to the interactive terminal:
-
-```bash
-docker compose -f compose.dev.yaml attach metro
-```
-
-Press **C** to redraw the QR code. Detach with **Ctrl+P**, then **Ctrl+Q**. Scan with the iPhone Camera app and open in Expo Go. `METRO_HOST` must be reachable from the iPhone on port 8081, or configure the HTTPS Metro proxy described above. Expo login does not make an unreachable server accessible. If the App Store Expo Go version does not support SDK 58, use a matching iOS development build instead.
-
-### Metro startup troubleshooting
-
-After changing the development Dockerfile or Metro configuration, rebuild and recreate the service:
-
-```bash
-docker compose -f compose.dev.yaml up -d --build --force-recreate metro
-docker compose -f compose.dev.yaml logs -f metro
-```
-
-The development image does not set `CI`: CI mode disables Metro's file watching and reloads. Source files are copied into this image, so host edits still require a rebuild.
-
-`invalid asset file path: .env` means an HTTP request reached Metro's asset handler for an environment file. It does not mean the app needs an `.env` asset. Such requests can come from automated probes; check your reverse proxy access logs to identify the caller. `metro.config.js` returns 404 for these requests before asset parsing. Keep `.env` excluded by `.dockerignore`.
-
-The React Native DevTools download warning is separate: Expo uses its fallback when the container cannot download the latest tools. Check the server/container's outbound connectivity, DNS and proxy settings if you need the latest DevTools.
+Use an IP reachable from the phone and an SDK 58 compatible Expo Go installation or development build. Source edits require rebuilding the image. Test background audio and lock-screen controls in your native build. Compose files are intentionally omitted.
 
 ## Build an installable Android app
 
@@ -188,36 +89,38 @@ For a development APK that connects to Metro:
 npx eas-cli@latest build --platform android --profile development
 ```
 
-For Play Store production AAB:
+For a signed Play Store Android App Bundle (`.aab`):
 
 ```bash
-npx eas-cli@latest build --platform android --profile production
+npm run build:android:store
 ```
 
-For iOS, use `--platform ios`; EAS cloud builds avoid needing Xcode on your own machine. Apple signing, device registration for internal distribution, and Apple account requirements still apply. `eas init` adds your real project ID; none is fabricated or preconfigured here.
+Download the completed bundle from the Expo build page for a manual upload, or use the [Android CI/CD workflow](docs/android-releases.md). Pull requests run quality checks; a push to `prod` or a manual release from `main`/`prod` queues an EAS build and submission to Google Play internal testing. One-time Expo/Play credentials setup is required. Promote the tested bundle to production in Play Console.
+
+For iOS, use `--platform ios`; EAS cloud builds avoid needing Xcode on your own machine. Apple signing, device registration for internal distribution, and Apple account requirements still apply. The project is linked to `@cyfamod_technologies/lfc-jahi-media` using its real Expo project ID. Production builds create a signed Android App Bundle with the production API origin and increment the Android version code.
 
 ## Edit content
 
-- `src/data/messages.json`: title, pastor, date, service, source MP3, original message link and local artwork index.
+- Messages and directory: manage published content in the backend/admin. `src/api.ts` validates and maps the public API responses. The older `src/data/messages.json` is retained as reference and is not loaded by the app.
 - `src/data/prayers.json`: add another dated guide, each with a unique ID, prayer text, scripture reference and full passage. Progress keys include the guide ID, keeping days separate.
 - `src/data/resources.json`: church, Shiloh, home-cell and supplementary prayer links.
 - `src/theme.ts`: colours and typography.
 - `assets/`: local artwork. `artwork` in `src/components/MessageRow.tsx` maps each image index.
 
-A future CMS/API can replace these JSON imports; no backend credentials are embedded. Any `EXPO_PUBLIC_*` variables added in future are public build-time configuration, never a place for secrets.
+No backend credentials are embedded. `EXPO_PUBLIC_*` variables are public build-time configuration.
 
 ## Project structure
 
 ```text
-App.tsx                     app shell, tabs, state and audio lifecycle
+App.tsx                     shared shell, state and audio lifecycle
+src/app/                    Expo Router tab routes
+src/api.ts                  public API configuration and response mapping
 src/components/             shared controls, message rows and full player
 src/screens/                home, library and prayer views
 src/hooks/                  validated persistent state
 src/data/                   bundled content
 Dockerfile                  production web export + unprivileged Nginx
 Dockerfile.dev              Metro development image
-compose.yaml                production service
-compose.dev.yaml            native development service
 app.json / eas.json          native configuration and build profiles
 ```
 
@@ -225,12 +128,14 @@ app.json / eas.json          native configuration and build profiles
 
 ```bash
 npm run typecheck
+npm run lint
+npm test
 npm run check:sdk
 npm run build:web
 npx expo export --platform android --platform ios --output-dir native-bundles
 ```
 
-The delivery passed TypeScript and production web compilation, plus Android and iOS JavaScript/Hermes bundle export. The SDK compatibility check passed using the installed SDK’s local dependency map (`EXPO_OFFLINE=1`); the online compatibility endpoint timed out in this environment. Browser checks passed for theme persistence, saved messages, prayer progress, scripture expansion, audio loading and play/pause. Bundle export is not the same as an Android/iOS binary build. Docker Engine and native device/emulator runtimes are unavailable in the authoring environment, so Docker execution, native signing/builds, background playback, lock-screen controls and physical-device behaviour must be checked on your server/phone.
+Automated checks cover TypeScript, ESLint, API contract tests, SDK dependency compatibility (using the local SDK map), web compilation and Android/iOS JavaScript bundle export. Live API checks returned 234 audio messages, 30 districts, 65 zones and 358 home cells, and confirmed public CORS access. Browser automation was unavailable during this update, so rendering and interaction checks remain manual. Bundle export does not produce a signed installable binary. Verify audio streaming, background playback, lock-screen controls, phone/map links and native sharing on a physical device.
 
 Manual acceptance checks:
 
@@ -249,4 +154,27 @@ Manual acceptance checks:
 - Expo Audio: https://docs.expo.dev/versions/latest/sdk/audio/
 - Expo web export: https://docs.expo.dev/guides/publishing-websites/
 - EAS Build: https://docs.expo.dev/build/introduction/
+
 # lfcjahi-mobile
+
+Live API acceptance checks:
+
+1. Confirm the Home card matches the latest published backend message and artwork.
+2. Search all messages; verify service filters use backend service names.
+3. Open the service selector, choose a service and confirm matching messages appear.
+4. Refresh online, restart offline and confirm cached content plus a retry message. Restore connectivity and retry.
+5. Confirm shared links open the exact message in the app after domain verification. Download a message, confirm success without leaving the app, then find it in Saved.
+
+## Launch experience
+
+A dark native launch screen transitions into a warm, animated introduction with the church identity, a sound wave and Romans 10:17. The introduction fades into the app after approximately 3.7 seconds, or sooner with “Enter the Word.” Reduced-motion settings bypass the animation. Startup waits for fonts and local preferences, independently of API connectivity. No audio plays automatically.
+
+The animated introduction also appears on web. Native launch artwork/background changes require a new Android/iOS build; Expo Go does not reproduce the final system splash screen. Verify the full launch transition in a release build.
+
+## Downloads and message links
+
+The player fits on one screen without scrolling. Download saves audio inside the native app, reports progress and confirms success; downloaded messages appear in Saved and play from the local file without a network connection. Failed transfers remove partial files. Clearing app storage or uninstalling removes downloads.
+
+Android HTTPS App Links cover `https://lfcjahi.com/messages/*` and `https://www.lfcjahi.com/messages/*`. Each opens the matching message without autoplay. Website source includes `homepage/public/.well-known/assetlinks.json`; deploy it to both hosts with HTTP 200, JSON content type and no redirects. Its certificate fingerprint matches the Expo-signed APK. If Google Play App Signing uses a different certificate, add its SHA-256 fingerprint from Play Console → App integrity before publishing the store release. Do not replace it with a SHA-1 fingerprint.
+
+Verify after deployment with `adb shell pm verify-app-links --re-verify com.cyfamod.lfcjahi.media` and `adb shell pm get-app-links com.cyfamod.lfcjahi.media`. Custom `lfcjahi://messages/247` links also open individual messages. The website has an explicit Android app button for browsers that keep links inside their own window.

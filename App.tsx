@@ -1,4 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -8,8 +16,18 @@ import {
   Platform,
   ScrollView,
   ScrollViewInstance,
+  RefreshControl,
   View,
 } from 'react-native';
+import {
+  Slot,
+  router,
+  usePathname,
+  useLocalSearchParams,
+  useGlobalSearchParams,
+} from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { LaunchScreen } from './src/components/LaunchScreen';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
@@ -19,27 +37,45 @@ import { Manrope_800ExtraBold } from '@expo-google-fonts/manrope/800ExtraBold';
 import { DMSans_400Regular } from '@expo-google-fonts/dm-sans/400Regular';
 import { DMSans_500Medium } from '@expo-google-fonts/dm-sans/500Medium';
 import { dark, light, fonts } from './src/theme';
-import { Eyebrow, Icon, IconButton, IconName, ThemeContext, Txt } from './src/components/UI';
+import { Icon, IconButton, IconName, ThemeContext, Txt } from './src/components/UI';
 import { Home } from './src/screens/Home';
 import { Library } from './src/screens/Library';
 import { Prayers } from './src/screens/Prayers';
 import { Player } from './src/components/Player';
-import { artwork } from './src/components/MessageRow';
+import { messageArtwork } from './src/components/MessageRow';
 import { Message, PrayerGuide, Tab } from './src/types';
 import { isStringArray, isTheme, usePersistentState } from './src/hooks/usePersistentState';
-import { openUrl } from './src/lib';
-import messageData from './src/data/messages.json';
+import { normalizeMessages } from './src/api';
+import { useDownloads } from './src/hooks/useDownloads';
+import { useRemoteCollection } from './src/hooks/useRemoteCollection';
 import prayerData from './src/data/prayers.json';
-import resources from './src/data/resources.json';
-const messages: Message[] = messageData;
+void SplashScreen.preventAutoHideAsync().catch(() => {});
 const guides: PrayerGuide[] = prayerData;
 const tabs: { label: Tab; icon: IconName }[] = [
   { label: 'Home', icon: 'home-outline' },
   { label: 'Messages', icon: 'library-outline' },
   { label: 'Prayers', icon: 'sunny-outline' },
   { label: 'Saved', icon: 'heart-outline' },
-  { label: 'Connect', icon: 'people-outline' },
 ];
+const routePaths = {
+  Home: '/',
+  Messages: '/messages',
+  Prayers: '/prayers',
+  Saved: '/saved',
+} as const;
+const ScreenContext = createContext<React.ReactNode>(null);
+const MessageLinkContext = createContext<((id: string) => void) | null>(null);
+export function SharedMessageScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const openMessage = useContext(MessageLinkContext);
+  useEffect(() => {
+    if (typeof id === 'string') openMessage?.(id);
+  }, [id, openMessage]);
+  return <RoutedScreen />;
+}
+export function RoutedScreen() {
+  return useContext(ScreenContext);
+}
 export default function App() {
   return (
     <SafeAreaProvider>
@@ -48,6 +84,19 @@ export default function App() {
   );
 }
 function AppContent() {
+  const [launchFinished, setLaunchFinished] = useState(false);
+  const finishLaunch = useCallback(() => setLaunchFinished(true), []);
+  const media = useRemoteCollection('media', normalizeMessages);
+  const downloads = useDownloads();
+  const messages = useMemo(
+    () => [
+      ...media.data,
+      ...downloads.records
+        .filter((r) => !media.data.some((m) => m.id === r.message.id))
+        .map((r) => r.message),
+    ],
+    [media.data, downloads.records],
+  );
   const theme = usePersistentState<'dark' | 'light'>('lfc-native-theme', 'dark', isTheme);
   const saved = usePersistentState<string[]>('lfc-native-saved', [], isStringArray);
   const prayed = usePersistentState<string[]>('lfc-native-prayed', [], isStringArray);
@@ -57,11 +106,20 @@ function AppContent() {
     DMSans_400Regular,
     DMSans_500Medium,
   });
-  const [tab, setTab] = useState<Tab>('Home');
+  const pathname = usePathname();
+  const tab = pathname.startsWith('/messages/')
+    ? 'Messages'
+    : (Object.keys(routePaths) as Tab[]).find((t) => routePaths[t] === pathname) || 'Home';
+  const { id: sharedId } = useGlobalSearchParams<{ id?: string }>();
+  const handledShared = useRef<string | null>(null);
+  const setTab = (t: Tab) => router.navigate(routePaths[t]);
+  const feed = media;
   const [query, setQuery] = useState('');
   const [guide, setGuide] = useState<PrayerGuide | null>(null);
   const [current, setCurrent] = useState<Message | null>(null);
   const [playerOpen, setPlayerOpen] = useState(false);
+  const playbackSession = useRef(0);
+  const loadedAudio = useRef<string | null>(null);
   const scroll = useRef<ScrollViewInstance>(null);
   const insets = useSafeAreaInsets();
   const player = useAudioPlayer(null, { updateInterval: 500 });
@@ -98,10 +156,13 @@ function AppContent() {
     setGuide(null);
     scroll.current?.scrollTo({ y: 0, animated: false });
   }
-  function play(m: Message) {
+  function play(m: Message, openPlayer = true) {
+    playbackSession.current += 1;
     try {
-      if (current?.id !== m.id) {
-        player.replace({ uri: m.audioUrl });
+      const uri = downloads.source(m);
+      if (current?.id !== m.id || loadedAudio.current !== uri) {
+        player.replace({ uri });
+        loadedAudio.current = uri;
         setCurrent(m);
       }
       player.play();
@@ -111,21 +172,58 @@ function AppContent() {
           artist: m.pastor,
           albumTitle: 'LFC Jahi Media',
         });
-      setPlayerOpen(true);
+      if (openPlayer) setPlayerOpen(true);
     } catch {
       Alert.alert('Unable to play', 'Check your connection and try again.');
     }
   }
-  function toggle() {
+  async function toggle() {
+    const session = playbackSession.current;
     try {
       if (status.playing) player.pause();
       else {
-        if (status.didJustFinish) void player.seekTo(0);
+        if (status.playbackState === 'error' && current) {
+          const uri = downloads.source(current);
+          player.replace({ uri });
+          loadedAudio.current = uri;
+        } else if (status.didJustFinish) await player.seekTo(0);
+        if (session !== playbackSession.current) return;
         player.play();
+        if (Platform.OS !== 'web' && current)
+          player.setActiveForLockScreen(true, {
+            title: current.title,
+            artist: current.pastor,
+            albumTitle: 'LFC Jahi Media',
+          });
       }
     } catch {
-      Alert.alert('Unable to play', 'Please try opening the original message.');
+      Alert.alert('Unable to play', 'Check your connection and tap Play to retry.');
     }
+  }
+  function minimizePlayer() {
+    handledShared.current = null;
+    setPlayerOpen(false);
+    if (sharedId) router.replace('/messages');
+  }
+  function stopAudio() {
+    handledShared.current = null;
+    playbackSession.current += 1;
+    try {
+      player.pause();
+      player.replace(null);
+      loadedAudio.current = null;
+    } catch {
+      Alert.alert('Unable to close audio', 'Please try again.');
+      return;
+    }
+    try {
+      player.clearLockScreenControls();
+    } catch {
+      /* Some browsers do not expose media controls. */
+    }
+    setPlayerOpen(false);
+    setCurrent(null);
+    if (sharedId) router.replace('/messages');
   }
   function save(id: string) {
     saved.setValue((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -134,24 +232,48 @@ function AppContent() {
     setGuide(g);
     scroll.current?.scrollTo({ y: 0, animated: false });
   }
-  if ((!fontsLoaded && !fontError) || !theme.ready || !saved.ready || !prayed.ready)
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: c.background,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <ActivityIndicator color={c.accent} />
-      </View>
-    );
+  const ready =
+    (fontsLoaded || !!fontError) && theme.ready && saved.ready && prayed.ready && downloads.ready;
+  const openSharedMessage = useCallback(
+    (id: string) => {
+      if (!ready || !launchFinished || handledShared.current === id) return;
+      const message = messages.find((m) => m.id === id);
+      if (!message) {
+        if (!media.loading && !media.error) {
+          handledShared.current = id;
+          Alert.alert('Message unavailable', 'This message may no longer be published.');
+        }
+        return;
+      }
+      try {
+        player.pause();
+        const uri = downloads.source(message);
+        player.replace({ uri });
+        loadedAudio.current = uri;
+        playbackSession.current += 1;
+        handledShared.current = id;
+        setCurrent(message);
+        setPlayerOpen(true);
+      } catch {
+        Alert.alert('Unable to open message', 'Please try again.');
+      }
+    },
+    [ready, launchFinished, messages, media.loading, media.error, player, downloads.source],
+  );
+
   return (
     <ThemeContext.Provider value={c}>
-      <View style={{ flex: 1, backgroundColor: c.background }}>
+      <View
+        onLayout={() => {
+          void SplashScreen.hideAsync().catch(() => {});
+        }}
+        style={{ flex: 1, backgroundColor: c.background }}
+      >
         <StatusBar style={theme.value === 'dark' ? 'light' : 'dark'} />
         <SafeAreaView
+          pointerEvents={playerOpen || !launchFinished ? 'none' : 'auto'}
+          accessibilityElementsHidden={playerOpen || !launchFinished}
+          importantForAccessibility={launchFinished && !playerOpen ? 'auto' : 'no-hide-descendants'}
           edges={['top', 'left', 'right']}
           style={{
             flex: 1,
@@ -199,124 +321,98 @@ function AppContent() {
           <ScrollView
             ref={scroll}
             keyboardShouldPersistTaps="handled"
+            refreshControl={
+              <RefreshControl
+                refreshing={feed.loading}
+                onRefresh={() => void feed.refresh()}
+                tintColor={c.accent}
+              />
+            }
             contentContainerStyle={{ paddingHorizontal: 22, paddingBottom: 30 }}
           >
+            {feed.loading && !feed.data.length && (
+              <ActivityIndicator color={c.accent} style={{ marginVertical: 15 }} />
+            )}
+            {!!feed.error && (
+              <View accessibilityRole="alert" style={{ paddingVertical: 12, gap: 8 }}>
+                <Txt style={{ color: c.accent, fontSize: 12 }}>{feed.error}</Txt>
+                {feed.cached && (
+                  <Txt style={{ color: c.muted, fontSize: 12 }}>
+                    Showing previously loaded content. Audio requires a connection.
+                  </Txt>
+                )}
+                <Pressable accessibilityRole="button" onPress={() => void feed.refresh()}>
+                  <Txt style={{ color: c.accent }}>Try again →</Txt>
+                </Pressable>
+              </View>
+            )}
+            {feed.storageError && (
+              <Txt style={{ color: c.muted, fontSize: 12 }}>
+                Offline caching is unavailable on this device.
+              </Txt>
+            )}
             {(saved.error || theme.error || prayed.error) && (
               <Txt style={{ fontSize: 11, color: c.accent, marginBottom: 10 }}>
                 Device storage is unavailable. Your changes may not be kept after closing the app.
               </Txt>
             )}
-            {tab === 'Home' && (
-              <Home
-                messages={messages}
-                onPlay={play}
-                onTab={navigate}
-                onSearch={(q) => {
-                  setQuery(q);
-                  setTab('Messages');
-                }}
-                onShiloh={() => openUrl(resources.shiloh)}
-                saved={saved.value}
-                onSave={save}
-              />
-            )}
-            {(tab === 'Messages' || tab === 'Saved') && (
-              <Library
-                key={tab}
-                messages={
-                  tab === 'Saved' ? messages.filter((m) => saved.value.includes(m.id)) : messages
+            <MessageLinkContext.Provider value={openSharedMessage}>
+              <ScreenContext.Provider
+                value={
+                  <>
+                    {tab === 'Home' && (
+                      <Home
+                        messages={messages}
+                        onPlay={(message) => play(message)}
+                        onTab={navigate}
+                        onSearch={(q) => {
+                          setQuery(q);
+                          setTab('Messages');
+                        }}
+                        saved={saved.value}
+                        onSave={save}
+                      />
+                    )}
+                    {(tab === 'Messages' || tab === 'Saved') && (
+                      <Library
+                        key={tab}
+                        messages={
+                          tab === 'Saved'
+                            ? messages.filter(
+                                (m) =>
+                                  saved.value.includes(m.id) ||
+                                  downloads.records.some((r) => r.message.id === m.id),
+                              )
+                            : messages
+                        }
+                        onPlay={(message) => play(message)}
+                        savedOnly={tab === 'Saved'}
+                        query={query}
+                        setQuery={setQuery}
+                      />
+                    )}
+                    {tab === 'Prayers' && (
+                      <Prayers
+                        guides={guides}
+                        guide={guide}
+                        onGuide={openGuide}
+                        prayed={prayed.value}
+                        onToggle={(key) =>
+                          prayed.setValue((p) =>
+                            p.includes(key) ? p.filter((x) => x !== key) : [...p, key],
+                          )
+                        }
+                        onReset={(g) =>
+                          prayed.setValue((p) => p.filter((x) => !x.startsWith(g.id + ':')))
+                        }
+                      />
+                    )}
+                  </>
                 }
-                onPlay={play}
-                savedOnly={tab === 'Saved'}
-                query={query}
-                setQuery={setQuery}
-              />
-            )}
-            {tab === 'Prayers' && (
-              <Prayers
-                guides={guides}
-                guide={guide}
-                onGuide={openGuide}
-                prayed={prayed.value}
-                onToggle={(key) =>
-                  prayed.setValue((p) =>
-                    p.includes(key) ? p.filter((x) => x !== key) : [...p, key],
-                  )
-                }
-                onReset={(g) => prayed.setValue((p) => p.filter((x) => !x.startsWith(g.id + ':')))}
-              />
-            )}
-            {tab === 'Connect' && (
-              <>
-                <View style={{ marginVertical: 20 }}>
-                  <Eyebrow>FAITH. FELLOWSHIP. FAMILY.</Eyebrow>
-                  <Txt
-                    style={{ fontSize: 30, lineHeight: 40, fontFamily: fonts.heavy, marginTop: 10 }}
-                  >
-                    You belong here.
-                  </Txt>
-                  <Txt style={{ color: c.muted, fontSize: 13, marginTop: 10 }}>
-                    Stay connected to the Word and our community.
-                  </Txt>
-                </View>
-                {[
-                  {
-                    title: 'Shiloh 2025',
-                    text: 'Revisit the teachings. Keep the fire burning.',
-                    icon: 'book-outline' as const,
-                    press: () => openUrl(resources.shiloh),
-                  },
-                  {
-                    title: 'Stand with us in prayer',
-                    text: 'Dated prayer guides and scriptures for your prayer time.',
-                    icon: 'sunny-outline' as const,
-                    press: () => navigate('Prayers'),
-                  },
-                  {
-                    title: 'Find your home cell',
-                    text: 'Discover a fellowship near you in Abuja.',
-                    icon: 'people-outline' as const,
-                    press: () => openUrl(resources.homeCells),
-                  },
-                ].map((x) => (
-                  <Pressable
-                    key={x.title}
-                    accessibilityRole="button"
-                    onPress={x.press}
-                    style={{
-                      backgroundColor: c.surface,
-                      borderWidth: 1,
-                      borderColor: c.line,
-                      borderRadius: 20,
-                      padding: 23,
-                      marginBottom: 15,
-                    }}
-                  >
-                    <Icon name={x.icon} color={c.accent} />
-                    <Txt
-                      style={{
-                        fontSize: 21,
-                        lineHeight: 29,
-                        fontFamily: fonts.bold,
-                        marginVertical: 15,
-                      }}
-                    >
-                      {x.title}
-                    </Txt>
-                    <Txt style={{ fontSize: 13, color: c.muted }}>{x.text}</Txt>
-                    <Txt style={{ color: c.accent, fontSize: 12, marginTop: 17 }}>Explore →</Txt>
-                  </Pressable>
-                ))}
-                <Txt style={{ fontFamily: fonts.bold, marginTop: 15 }}>About LFC Jahi Media</Txt>
-                <Txt style={{ color: c.muted, fontSize: 13, lineHeight: 24, marginVertical: 12 }}>
-                  Faith-building audio messages to keep you connected to God’s Word, wherever you
-                  are.
-                </Txt>
-                <Pressable accessibilityRole="link" onPress={() => openUrl(resources.website)}>
-                  <Txt style={{ color: c.accent }}>Visit the website →</Txt>
-                </Pressable>
-              </>
-            )}
+              >
+                <Slot />
+              </ScreenContext.Provider>
+            </MessageLinkContext.Provider>
           </ScrollView>
           {current && (
             <View
@@ -340,7 +436,7 @@ function AppContent() {
                 style={{ flexDirection: 'row', gap: 10, alignItems: 'center', flex: 1 }}
               >
                 <Image
-                  source={artwork[current.image]}
+                  source={messageArtwork(current)}
                   style={{ width: 40, height: 44, borderRadius: 8 }}
                 />
                 <View style={{ flex: 1 }}>
@@ -357,6 +453,7 @@ function AppContent() {
                 label={status.playing ? 'Pause audio' : 'Play audio'}
                 onPress={toggle}
               />
+              <IconButton name="close" label="Stop and close audio" onPress={stopAudio} />
             </View>
           )}
           <View
@@ -392,17 +489,31 @@ function AppContent() {
             ))}
           </View>
         </SafeAreaView>
+        {!launchFinished && (
+          <LaunchScreen ready={ready} fontsReady={fontsLoaded} onFinish={finishLaunch} />
+        )}
         {current && (
           <Player
             visible={playerOpen}
-            onClose={() => setPlayerOpen(false)}
+            onClose={minimizePlayer}
+            onStop={stopAudio}
+            onDownload={() => void downloads.download(current)}
+            downloaded={downloads.source(current) !== current.audioUrl}
+            downloading={!!downloads.active}
+            downloadProgress={
+              downloads.active?.id === current.id ? downloads.active.progress : null
+            }
             message={current}
             player={player}
             status={status}
             saved={saved.value.includes(current.id)}
             onSave={() => save(current.id)}
             onNext={() =>
-              play(messages[(messages.findIndex((m) => m.id === current.id) + 1) % messages.length])
+              messages.length &&
+              play(
+                messages[(messages.findIndex((m) => m.id === current.id) + 1) % messages.length],
+                false,
+              )
             }
             onToggle={toggle}
           />

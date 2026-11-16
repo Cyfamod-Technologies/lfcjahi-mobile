@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { Image, Pressable, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Eyebrow, Icon, Section, Txt, useTheme } from '../components/UI';
-import { artwork, MessageRow } from '../components/MessageRow';
+import { messageArtwork, MessageRow } from '../components/MessageRow';
 import { Message, Tab } from '../types';
 import { fonts } from '../theme';
 export function Home({
@@ -9,7 +10,6 @@ export function Home({
   onPlay,
   onTab,
   onSearch,
-  onShiloh,
   saved,
   onSave,
 }: {
@@ -17,11 +17,11 @@ export function Home({
   onPlay: (m: Message) => void;
   onTab: (t: Tab) => void;
   onSearch: (q: string) => void;
-  onShiloh: () => void;
   saved: string[];
   onSave: (id: string) => void;
 }) {
   const c = useTheme();
+  const [search, setSearch] = useState('');
   const latest = messages[0];
   return (
     <>
@@ -60,153 +60,106 @@ export function Home({
           placeholderTextColor={c.muted}
           accessibilityLabel="Search messages"
           style={{ color: c.text, flex: 1, fontFamily: fonts.regular, fontSize: 13 }}
-          onChangeText={onSearch}
+          value={search}
+          onChangeText={setSearch}
+          returnKeyType="search"
+          onSubmitEditing={() => onSearch(search)}
         />
-      </View>
-      <View
-        style={{
-          height: 285,
-          borderRadius: 23,
-          overflow: 'hidden',
-          backgroundColor: '#28332b',
-          marginTop: 24,
-        }}
-      >
-        <Image
-          source={artwork[0]}
-          style={{ position: 'absolute', right: -30, top: 0, width: '78%', height: '100%' }}
-        />
-        <LinearGradient
-          colors={['#26312b', '#26312be8', '#26312b00']}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={{ position: 'absolute', inset: 0 }}
-        />
-        <View style={{ padding: 23 }}>
-          <Txt
-            style={{ color: '#dbe2c8', fontSize: 9, letterSpacing: 1.7, fontFamily: fonts.bold }}
-          >
-            ● THE LATEST WORD
-          </Txt>
-          <Txt
-            style={{
-              color: '#fff',
-              fontFamily: fonts.heavy,
-              fontSize: 35,
-              lineHeight: 39,
-              letterSpacing: -1,
-              marginTop: 19,
-            }}
-          >
-            Wisdom{'\n'}from above.
-          </Txt>
-          <Txt style={{ color: '#d4dbd0', fontSize: 10, marginTop: 11 }}>
-            How real is the wisdom from above?
-          </Txt>
-          <Txt style={{ color: '#d4dbd0', fontSize: 11, marginBottom: 16 }}>
-            Pst. David Bamgboye
-          </Txt>
-          <Pressable
-            onPress={() => onPlay(latest)}
-            accessibilityRole="button"
-            style={{
-              flexDirection: 'row',
-              gap: 8,
-              alignItems: 'center',
-              alignSelf: 'flex-start',
-              backgroundColor: '#edf1d8',
-              paddingHorizontal: 18,
-              paddingVertical: 11,
-              borderRadius: 25,
-            }}
-          >
-            <Icon name="play" size={14} color="#28342c" />
-            <Txt style={{ color: '#28342c', fontSize: 12, fontFamily: fonts.bold }}>
-              Start listening
-            </Txt>
-          </Pressable>
-        </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Save latest message"
-          accessibilityState={{ selected: saved.includes(latest.id) }}
-          onPress={() => onSave(latest.id)}
-          style={{
-            position: 'absolute',
-            bottom: 18,
-            right: 17,
-            padding: 10,
-            backgroundColor: '#ffffff25',
-            borderRadius: 22,
-          }}
+          accessibilityLabel="Search message library"
+          onPress={() => onSearch(search)}
+          style={{ padding: 6 }}
         >
-          <Icon
-            name={saved.includes(latest.id) ? 'heart' : 'heart-outline'}
-            color="#fff"
-            size={19}
-          />
+          <Icon name="arrow-forward" size={20} color={c.accent} />
         </Pressable>
       </View>
-      <Section title="Explore your faith" />
-      <View style={{ flexDirection: 'row', gap: 9 }}>
-        {(
-          [
-            {
-              label: 'Shiloh ’25',
-              sub: 'The collection',
-              icon: 'book-outline',
-              color: '#b6a16c',
-              press: onShiloh,
-            },
-            {
-              label: 'Prayer',
-              sub: 'Build your altar',
-              icon: 'sunny-outline',
-              color: '#a38cc9',
-              press: () => onTab('Prayers'),
-            },
-            {
-              label: 'Fellowship',
-              sub: 'Find your people',
-              icon: 'people-outline',
-              color: '#7fae99',
-              press: () => onTab('Connect'),
-            },
-          ] as const
-        ).map((x) => (
-          <Pressable
-            key={x.label}
-            accessibilityRole="button"
-            onPress={x.press}
-            style={{
-              flex: 1,
-              backgroundColor: c.surface,
-              borderWidth: 1,
-              borderColor: c.line,
-              borderRadius: 17,
-              padding: 12,
-            }}
-          >
-            <View
+      {latest ? (
+        <View
+          style={{
+            minHeight: 285,
+            borderRadius: 23,
+            overflow: 'hidden',
+            backgroundColor: '#28332b',
+            marginTop: 24,
+          }}
+        >
+          <Image
+            source={messageArtwork(latest)}
+            style={{ position: 'absolute', right: -30, top: 0, width: '78%', height: '100%' }}
+          />
+          <LinearGradient
+            colors={['#26312b', '#26312be8', '#26312b00']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={{ position: 'absolute', inset: 0 }}
+          />
+          <View style={{ padding: 23 }}>
+            <Txt
+              style={{ color: '#dbe2c8', fontSize: 9, letterSpacing: 1.7, fontFamily: fonts.bold }}
+            >
+              ● THE LATEST WORD
+            </Txt>
+            <Txt
               style={{
-                backgroundColor: x.color + '20',
-                width: 35,
-                height: 35,
-                borderRadius: 11,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 15,
+                color: '#fff',
+                fontFamily: fonts.heavy,
+                fontSize: 26,
+                lineHeight: 33,
+                letterSpacing: -1,
+                marginTop: 19,
               }}
             >
-              <Icon name={x.icon} color={x.color} size={19} />
-            </View>
-            <Txt style={{ fontSize: 12, fontFamily: fonts.bold }}>{x.label}</Txt>
-            <Txt style={{ fontSize: 9, color: c.muted, marginTop: 5, lineHeight: 16 }}>
-              {x.sub} →
+              {latest.title}
             </Txt>
+            <Txt style={{ color: '#d4dbd0', fontSize: 10, marginTop: 11 }}>{latest.service}</Txt>
+            <Txt style={{ color: '#d4dbd0', fontSize: 11, marginBottom: 16 }}>{latest.pastor}</Txt>
+            <Pressable
+              onPress={() => onPlay(latest)}
+              accessibilityRole="button"
+              style={{
+                flexDirection: 'row',
+                gap: 8,
+                alignItems: 'center',
+                alignSelf: 'flex-start',
+                backgroundColor: '#edf1d8',
+                paddingHorizontal: 18,
+                paddingVertical: 11,
+                borderRadius: 25,
+              }}
+            >
+              <Icon name="play" size={14} color="#28342c" />
+              <Txt style={{ color: '#28342c', fontSize: 12, fontFamily: fonts.bold }}>
+                Start listening
+              </Txt>
+            </Pressable>
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Save latest message"
+            accessibilityState={{ selected: saved.includes(latest.id) }}
+            onPress={() => onSave(latest.id)}
+            style={{
+              position: 'absolute',
+              bottom: 18,
+              right: 17,
+              padding: 10,
+              backgroundColor: '#ffffff25',
+              borderRadius: 22,
+            }}
+          >
+            <Icon
+              name={saved.includes(latest.id) ? 'heart' : 'heart-outline'}
+              color="#fff"
+              size={19}
+            />
           </Pressable>
-        ))}
-      </View>
+        </View>
+      ) : (
+        <Txt style={{ color: c.muted, marginTop: 24 }}>
+          No messages available. Pull down to refresh.
+        </Txt>
+      )}
       <Section title="Fresh from the pulpit" action="See all" onPress={() => onTab('Messages')} />
       {messages.slice(0, 3).map((m) => (
         <MessageRow key={m.id} message={m} onPress={() => onPlay(m)} />

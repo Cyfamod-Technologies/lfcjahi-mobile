@@ -1,9 +1,9 @@
-import { Pressable, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useState } from 'react';
 import { Eyebrow, Icon, Txt, useTheme } from '../components/UI';
 import { MessageRow } from '../components/MessageRow';
 import { fonts } from '../theme';
-import { Message, Service } from '../types';
+import { Message } from '../types';
 export function Library({
   messages,
   onPlay,
@@ -18,11 +18,14 @@ export function Library({
   setQuery: (q: string) => void;
 }) {
   const c = useTheme();
-  const [filter, setFilter] = useState<Service>('All');
+  const [filter, setFilter] = useState('All');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [limit, setLimit] = useState(30);
+  const filters = ['All', ...new Set(messages.map((m) => m.service))];
   const visible = messages.filter(
     (m) =>
       (filter === 'All' || m.service === filter) &&
-      (m.title + ' ' + m.pastor).toLowerCase().includes(query.toLowerCase()),
+      (m.title + ' ' + m.pastor + ' ' + m.service).toLowerCase().includes(query.toLowerCase()),
   );
   return (
     <>
@@ -52,7 +55,10 @@ export function Library({
         <Icon name="search-outline" color={c.muted} size={20} />
         <TextInput
           value={query}
-          onChangeText={setQuery}
+          onChangeText={(value) => {
+            setQuery(value);
+            setLimit(30);
+          }}
           autoCapitalize="none"
           placeholder="Search title or pastor"
           placeholderTextColor={c.muted}
@@ -60,29 +66,123 @@ export function Library({
           style={{ color: c.text, flex: 1, fontFamily: fonts.regular, fontSize: 14 }}
         />
       </View>
-      <View style={{ flexDirection: 'row', gap: 9, marginVertical: 20 }}>
-        {(['All', 'Sunday', 'Midweek'] as Service[]).map((f) => (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 14 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Filter by service: ${filter === 'All' ? 'All services' : filter}`}
+          accessibilityState={{ expanded: filterOpen }}
+          onPress={() => setFilterOpen(true)}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            paddingHorizontal: 14,
+            minHeight: 44,
+            borderRadius: 12,
+            backgroundColor: c.surface,
+            borderWidth: 1,
+            borderColor: c.line,
+            flexShrink: 1,
+          }}
+        >
+          <Icon name="options-outline" size={17} color={c.accent} />
+          <Txt numberOfLines={1} style={{ fontSize: 12, flexShrink: 1 }}>
+            {filter === 'All' ? 'All services' : filter}
+          </Txt>
+          <Icon name="chevron-down" size={15} color={c.muted} />
+        </Pressable>
+        <Txt style={{ color: c.muted, fontSize: 11, marginLeft: 'auto' }}>
+          {visible.length} messages
+        </Txt>
+      </View>
+      <Modal
+        visible={filterOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFilterOpen(false)}
+      >
+        <View
+          style={{ flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#00000066' }}
+        >
           <Pressable
-            key={f}
             accessibilityRole="button"
-            accessibilityState={{ selected: filter === f }}
-            onPress={() => setFilter(f)}
+            accessibilityLabel="Dismiss service filter"
+            onPress={() => setFilterOpen(false)}
+            style={{ position: 'absolute', inset: 0 }}
+          />
+          <View
+            accessibilityViewIsModal
             style={{
-              paddingHorizontal: 18,
-              paddingVertical: 11,
-              borderRadius: 25,
-              borderWidth: 1,
-              borderColor: filter === f ? c.accent : c.line,
-              backgroundColor: filter === f ? c.accent : c.surface,
+              width: '100%',
+              maxWidth: 440,
+              maxHeight: '75%',
+              alignSelf: 'center',
+              backgroundColor: c.background,
+              borderRadius: 20,
+              padding: 20,
             }}
           >
-            <Txt style={{ fontSize: 12, color: filter === f ? '#fff' : c.text }}>{f}</Txt>
-          </Pressable>
-        ))}
-      </View>
-      {visible.map((m) => (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 10,
+              }}
+            >
+              <Txt style={{ fontFamily: fonts.bold, fontSize: 18 }}>Choose service</Txt>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close service filter"
+                onPress={() => setFilterOpen(false)}
+                style={{ padding: 12 }}
+              >
+                <Icon name="close" size={20} />
+              </Pressable>
+            </View>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {filters.map((f) => (
+                <Pressable
+                  key={f}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: filter === f }}
+                  onPress={() => {
+                    setFilter(f);
+                    setLimit(30);
+                    setFilterOpen(false);
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    minHeight: 48,
+                    paddingVertical: 13,
+                    borderBottomWidth: 1,
+                    borderColor: c.line,
+                  }}
+                >
+                  <Txt style={{ flex: 1, fontSize: 13, color: filter === f ? c.accent : c.text }}>
+                    {f === 'All' ? 'All services' : f}
+                  </Txt>
+                  {filter === f && <Icon name="checkmark" size={19} color={c.accent} />}
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+      {visible.slice(0, limit).map((m) => (
         <MessageRow key={m.id} message={m} onPress={() => onPlay(m)} />
       ))}
+      {visible.length > limit && (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setLimit((n) => n + 30)}
+          style={{ padding: 20, alignItems: 'center' }}
+        >
+          <Txt style={{ color: c.accent }}>Load more ({visible.length - limit} remaining)</Txt>
+        </Pressable>
+      )}
       {!visible.length && (
         <View style={{ padding: 36, alignItems: 'center', gap: 16 }}>
           <Icon name={savedOnly ? 'heart-outline' : 'search-outline'} color={c.muted} size={30} />
