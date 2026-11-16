@@ -4,7 +4,7 @@
     "slug": "lfc-jahi-media",
     "version": "1.0.0",
     "scheme": "lfcjahi",
-    "orientation": "portrait",
+    "orientation": "default",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/church-logo.png",
     "ios": {

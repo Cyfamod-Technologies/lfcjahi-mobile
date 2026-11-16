@@ -178,3 +178,9 @@ The player fits on one screen without scrolling. Download saves audio inside the
 Android HTTPS App Links cover `https://lfcjahi.com/messages/*` and `https://www.lfcjahi.com/messages/*`. Each opens the matching message without autoplay. Website source includes `homepage/public/.well-known/assetlinks.json`; deploy it to both hosts with HTTP 200, JSON content type and no redirects. Its certificate fingerprint matches the Expo-signed APK. If Google Play App Signing uses a different certificate, add its SHA-256 fingerprint from Play Console → App integrity before publishing the store release. Do not replace it with a SHA-1 fingerprint.
 
 Verify after deployment with `adb shell pm verify-app-links --re-verify com.cyfamod.lfcjahi.media` and `adb shell pm get-app-links com.cyfamod.lfcjahi.media`. Custom `lfcjahi://messages/247` links also open individual messages. The website has an explicit Android app button for browsers that keep links inside their own window.
+
+## Tablet layouts
+
+The shell expands to 1120 points on larger displays. Home, Messages and Saved use two message columns at widths of 768 points and above, returning to one column in narrow split-screen windows or with larger accessibility text. Prayer guides retain a readable 760-point column. The player supports scrolling in short landscape windows. Native orientation follows the device; this configuration requires a new native build.
+
+The home feature uses the same bundled Bishop David Oyedepo photograph as the website, with ministry-focused wording and an overseer credit. The latest-message title and actual speaker remain visible beside its listening action.

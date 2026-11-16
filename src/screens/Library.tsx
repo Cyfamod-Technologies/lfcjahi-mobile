@@ -4,6 +4,7 @@ import { Eyebrow, Icon, Txt, useTheme } from '../components/UI';
 import { MessageRow } from '../components/MessageRow';
 import { fonts } from '../theme';
 import { Message } from '../types';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 export function Library({
   messages,
   onPlay,
@@ -18,6 +19,7 @@ export function Library({
   setQuery: (q: string) => void;
 }) {
   const c = useTheme();
+  const { columns } = useResponsiveLayout();
   const [filter, setFilter] = useState('All');
   const [filterOpen, setFilterOpen] = useState(false);
   const [limit, setLimit] = useState(30);
@@ -171,9 +173,13 @@ export function Library({
           </View>
         </View>
       </Modal>
-      {visible.slice(0, limit).map((m) => (
-        <MessageRow key={m.id} message={m} onPress={() => onPlay(m)} />
-      ))}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+        {visible.slice(0, limit).map((m) => (
+          <View key={m.id} style={{ width: columns === 2 ? '48%' : '100%' }}>
+            <MessageRow message={m} onPress={() => onPlay(m)} />
+          </View>
+        ))}
+      </View>
       {visible.length > limit && (
         <Pressable
           accessibilityRole="button"

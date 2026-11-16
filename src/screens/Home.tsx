@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Image, Pressable, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Eyebrow, Icon, Section, Txt, useTheme } from '../components/UI';
-import { messageArtwork, MessageRow } from '../components/MessageRow';
+import { MessageRow } from '../components/MessageRow';
 import { Message, Tab } from '../types';
 import { fonts } from '../theme';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 export function Home({
   messages,
   onPlay,
@@ -21,6 +22,7 @@ export function Home({
   onSave: (id: string) => void;
 }) {
   const c = useTheme();
+  const { tablet, columns } = useResponsiveLayout();
   const [search, setSearch] = useState('');
   const latest = messages[0];
   return (
@@ -77,7 +79,7 @@ export function Home({
       {latest ? (
         <View
           style={{
-            minHeight: 285,
+            minHeight: tablet ? 380 : 360,
             borderRadius: 23,
             overflow: 'hidden',
             backgroundColor: '#28332b',
@@ -85,35 +87,67 @@ export function Home({
           }}
         >
           <Image
-            source={messageArtwork(latest)}
-            style={{ position: 'absolute', right: -30, top: 0, width: '78%', height: '100%' }}
+            source={require('../../assets/david-oyedepo.jpg')}
+            accessibilityLabel="Bishop David Oyedepo, overseer of Living Faith Church"
+            resizeMode="cover"
+            style={{
+              position: 'absolute',
+              right: 0,
+              top: 0,
+              width: '100%',
+              height: tablet ? '100%' : 220,
+            }}
           />
           <LinearGradient
-            colors={['#26312b', '#26312be8', '#26312b00']}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
+            colors={
+              tablet ? ['#18251ff5', '#18251fc9', '#18251f33'] : ['#18251f00', '#18251f', '#18251f']
+            }
+            locations={tablet ? [0, 0.5, 1] : [0, 0.4, 1]}
+            start={{ x: 0, y: tablet ? 0.5 : 0 }}
+            end={{ x: tablet ? 1 : 0, y: tablet ? 0.5 : 1 }}
             style={{ position: 'absolute', inset: 0 }}
           />
-          <View style={{ padding: 23 }}>
+          <View
+            style={{
+              padding: tablet ? 32 : 23,
+              paddingTop: tablet ? 32 : 210,
+              paddingBottom: 70,
+              maxWidth: tablet ? 540 : undefined,
+            }}
+          >
             <Txt
               style={{ color: '#dbe2c8', fontSize: 9, letterSpacing: 1.7, fontFamily: fonts.bold }}
             >
-              ● THE LATEST WORD
+              ROOTED IN THE WORD
             </Txt>
             <Txt
               style={{
                 color: '#fff',
                 fontFamily: fonts.heavy,
-                fontSize: 26,
-                lineHeight: 33,
+                fontSize: tablet ? 36 : 27,
+                lineHeight: tablet ? 45 : 35,
                 letterSpacing: -1,
                 marginTop: 19,
               }}
             >
-              {latest.title}
+              Building faith.
+              {'\n'}Transforming lives.
             </Txt>
-            <Txt style={{ color: '#d4dbd0', fontSize: 10, marginTop: 11 }}>{latest.service}</Txt>
-            <Txt style={{ color: '#d4dbd0', fontSize: 11, marginBottom: 16 }}>{latest.pastor}</Txt>
+            <Txt style={{ color: '#edf1e8', fontSize: 13, lineHeight: 21, marginTop: 12 }}>
+              Grow in the Word with the Living Faith Church family.
+            </Txt>
+            <Txt style={{ color: '#d4dbd0', fontSize: 11, marginTop: 12 }}>
+              Bishop David Oyedepo
+            </Txt>
+            <Txt style={{ color: '#d4dbd0', fontSize: 10, marginBottom: 20 }}>
+              Overseer, Living Faith Church Worldwide
+            </Txt>
+            <Txt style={{ color: '#fff', fontSize: 12, fontFamily: fonts.bold }}>
+              Latest: {latest.title}
+            </Txt>
+            <Txt style={{ color: '#d4dbd0', fontSize: 11, marginBottom: 16 }}>
+              {latest.pastor} · {latest.service}
+            </Txt>
             <Pressable
               onPress={() => onPlay(latest)}
               accessibilityRole="button"
@@ -130,7 +164,7 @@ export function Home({
             >
               <Icon name="play" size={14} color="#28342c" />
               <Txt style={{ color: '#28342c', fontSize: 12, fontFamily: fonts.bold }}>
-                Start listening
+                Listen to latest message
               </Txt>
             </Pressable>
           </View>
@@ -161,9 +195,13 @@ export function Home({
         </Txt>
       )}
       <Section title="Fresh from the pulpit" action="See all" onPress={() => onTab('Messages')} />
-      {messages.slice(0, 3).map((m) => (
-        <MessageRow key={m.id} message={m} onPress={() => onPlay(m)} />
-      ))}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+        {messages.slice(0, columns === 2 ? 4 : 3).map((m) => (
+          <View key={m.id} style={{ width: columns === 2 ? '48%' : '100%', flexGrow: 0 }}>
+            <MessageRow message={m} onPress={() => onPlay(m)} />
+          </View>
+        ))}
+      </View>
       <View
         style={{
           padding: 23,

@@ -39,6 +39,7 @@ import { DMSans_500Medium } from '@expo-google-fonts/dm-sans/500Medium';
 import { dark, light, fonts } from './src/theme';
 import { Icon, IconButton, IconName, ThemeContext, Txt } from './src/components/UI';
 import { Home } from './src/screens/Home';
+import { useResponsiveLayout } from './src/hooks/useResponsiveLayout';
 import { Library } from './src/screens/Library';
 import { Prayers } from './src/screens/Prayers';
 import { Player } from './src/components/Player';
@@ -122,6 +123,7 @@ function AppContent() {
   const loadedAudio = useRef<string | null>(null);
   const scroll = useRef<ScrollViewInstance>(null);
   const insets = useSafeAreaInsets();
+  const { gutter } = useResponsiveLayout();
   const player = useAudioPlayer(null, { updateInterval: 500 });
   const status = useAudioPlayerStatus(player);
   const c = theme.value === 'dark' ? dark : light;
@@ -278,14 +280,14 @@ function AppContent() {
           style={{
             flex: 1,
             width: '100%',
-            maxWidth: 560,
+            maxWidth: 1120,
             alignSelf: 'center',
             backgroundColor: c.background,
           }}
         >
           <View
             style={{
-              paddingHorizontal: 23,
+              paddingHorizontal: gutter,
               paddingTop: 12,
               paddingBottom: 17,
               flexDirection: 'row',
@@ -328,7 +330,7 @@ function AppContent() {
                 tintColor={c.accent}
               />
             }
-            contentContainerStyle={{ paddingHorizontal: 22, paddingBottom: 30 }}
+            contentContainerStyle={{ paddingHorizontal: gutter, paddingBottom: 30 }}
           >
             {feed.loading && !feed.data.length && (
               <ActivityIndicator color={c.accent} style={{ marginVertical: 15 }} />
@@ -392,20 +394,22 @@ function AppContent() {
                       />
                     )}
                     {tab === 'Prayers' && (
-                      <Prayers
-                        guides={guides}
-                        guide={guide}
-                        onGuide={openGuide}
-                        prayed={prayed.value}
-                        onToggle={(key) =>
-                          prayed.setValue((p) =>
-                            p.includes(key) ? p.filter((x) => x !== key) : [...p, key],
-                          )
-                        }
-                        onReset={(g) =>
-                          prayed.setValue((p) => p.filter((x) => !x.startsWith(g.id + ':')))
-                        }
-                      />
+                      <View style={{ width: '100%', maxWidth: 760, alignSelf: 'center' }}>
+                        <Prayers
+                          guides={guides}
+                          guide={guide}
+                          onGuide={openGuide}
+                          prayed={prayed.value}
+                          onToggle={(key) =>
+                            prayed.setValue((p) =>
+                              p.includes(key) ? p.filter((x) => x !== key) : [...p, key],
+                            )
+                          }
+                          onReset={(g) =>
+                            prayed.setValue((p) => p.filter((x) => !x.startsWith(g.id + ':')))
+                          }
+                        />
+                      </View>
                     )}
                   </>
                 }

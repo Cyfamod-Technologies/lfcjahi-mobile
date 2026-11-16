@@ -5,6 +5,7 @@ import {
   Image,
   Modal,
   Pressable,
+  ScrollView,
   View,
   useWindowDimensions,
 } from 'react-native';
@@ -68,13 +69,17 @@ export function Player({
       allowSwipeDismissal={false}
     >
       <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
-        <View
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingHorizontal: 24,
+            minHeight: compact ? 600 : undefined,
+          }}
           style={{
             width: '100%',
-            maxWidth: 520,
+            maxWidth: 760,
             alignSelf: 'center',
             flex: 1,
-            paddingHorizontal: 24,
           }}
         >
           <View
@@ -106,7 +111,7 @@ export function Player({
               style={{
                 flex: 1,
                 minHeight: 0,
-                maxHeight: compact ? 150 : 220,
+                maxHeight: compact ? 150 : 320,
                 width: '100%',
                 borderRadius: 18,
                 backgroundColor: c.surface,
@@ -309,7 +314,7 @@ export function Player({
               ))}
             </View>
           </View>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     </Modal>
   );
