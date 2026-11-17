@@ -42,9 +42,34 @@ A green release workflow means EAS accepted the request, not that the build or s
 
 No EAS GitHub build trigger is needed in addition to these workflows. Enabling a second trigger for the same branch can duplicate builds. Keep `track: "internal"` for this pipeline; production rollout is a Play Console promotion of the tested bundle.
 
+## Expo access errors
+
+`Entity Not Authorized: AppEntity[4bc7da12-b340-4e21-9a9a-6d4fbdb21d60]` means the identity supplied by `EXPO_TOKEN` cannot read the linked project. npm deprecation warnings are unrelated. No build is queued when this access check fails.
+
+If the error names `RobotViewerContext`, the request is authenticated as a robot user. Verify that robot belongs to the account owning this project and has the Developer role or higher. A robot for the school app's account does not automatically have access to LFC Jahi's account.
+
+To resolve:
+
+1. Open the existing [LFC Jahi Expo project](https://expo.dev/accounts/cyfamod_technologies/projects/lfc-jahi-media) using an account that can access it. Verify its project ID matches `extra.eas.projectId` in `app.json`.
+2. Use a token from a user with access to that owning account, or configure a robot in that account with Developer access. For a limited personal token, include the owning account with Developer access as well. Create tokens in [Expo Access tokens](https://expo.dev/settings/access-tokens).
+3. Replace **GitHub repository → Settings → Secrets and variables → Actions → EXPO_TOKEN** with that token, then rerun the failed release. Do not paste it into source code or logs.
+4. The workflow prints `eas whoami` and checks `eas project:info` before queueing. Confirm these identify the intended identity and project. If a local login works but CI fails, they may be using different identities: `EXPO_TOKEN` overrides a saved CLI login, so `eas login` does not override the CI token.
+
+Keep the existing project ID and upload keystore. Relinking to a new project does not repair the old project's access permissions. Repository code cannot grant an Expo identity access or replace the GitHub secret.
+
 ## References
 
 - [Expo CI setup and authentication](https://docs.expo.dev/build/building-on-ci/)
 - [Google Play credentials and submission](https://docs.expo.dev/submit/android/)
 - [Remote version management](https://docs.expo.dev/build-reference/app-versions/)
 - [Automatic submission behavior](https://docs.expo.dev/build/automate-submissions/)
+
+## Play Console display warnings
+
+The current source uses `orientation: "default"`. Expo manifest introspection produces `android:screenOrientation="unspecified"` for MainActivity, with no explicit application/activity resizability restriction. `npm run check:android-config` verifies this after config plugins run, and CI enforces it. It checks the generated configuration, not a previously uploaded AAB.
+
+If Play reports `screenOrientation="PORTRAIT"`, compare the affected Play version code and build commit with this configuration. Build and upload a new AAB containing the tablet/orientation changes; a JavaScript update cannot change the Android manifest. Test rotation, split-screen, prayer reading and the audio player on Android 15/16 tablets and foldables before promotion.
+
+The installed React Native 0.88.1 source includes status/navigation bar color assignments in `ReactAndroid/src/main/java/com/facebook/react/views/view/WindowUtil.kt` (`enableEdgeToEdge`) and legacy cutout constants in its window helpers. These match part of the Play warning. App StatusBar components set icon brightness only; no deprecated bar-color parameters are configured by application code. Other obfuscated callers cannot be identified without the affected build's mapping file.
+
+The generated manifest check does not remove deprecated bytecode from framework dependencies or guarantee a warning-free Play report. Recheck the report on the new AAB. Resolving remaining library calls requires a compatible upstream fix; avoid editing generated Android files or disabling edge-to-edge. See [Android 16 adaptive display changes](https://developer.android.com/about/versions/16/behavior-changes-16) and [Expo status bar documentation](https://docs.expo.dev/versions/v58.0.0/sdk/status-bar/).

@@ -23,6 +23,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      - run: npm run check:android-config
       - run: npm test
       - name: Verify Android JavaScript bundle
         run: npx expo export --platform android

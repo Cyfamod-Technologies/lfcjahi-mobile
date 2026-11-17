@@ -45,7 +45,8 @@
     "format": "prettier --write App.tsx src index.ts *.json README.md",
     "lint": "expo lint",
     "test": "node --test tests/*.test.cjs",
-    "build:android:store": "npx eas-cli@latest build --platform android --profile production"
+    "build:android:store": "npx eas-cli@latest build --platform android --profile production",
+    "check:android-config": "node scripts/check-android-config.cjs"
   },
   "private": true,
   "engines": {

@@ -37,6 +37,13 @@ jobs:
             exit 1
           fi
       - run: npm ci
+      - name: Verify token identity and project access
+        run: |
+          npx --yes eas-cli@latest whoami
+          if ! npx --yes eas-cli@latest project:info; then
+            echo '::error::The CI token cannot access the linked Expo project. Verify EXPO_TOKEN belongs to an account or robot with Developer access to the account owning project 4bc7da12-b340-4e21-9a9a-6d4fbdb21d60. See docs/android-releases.md#expo-access-errors.'
+            exit 1
+          fi
       - name: Queue signed build and automatic Play submission
         run: npx --yes eas-cli@latest build --platform android --profile production --auto-submit --non-interactive --no-wait
       - name: Explain release status
