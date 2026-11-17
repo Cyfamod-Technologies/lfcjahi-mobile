@@ -95,7 +95,7 @@ For a signed Play Store Android App Bundle (`.aab`):
 npm run build:android:store
 ```
 
-Download the completed bundle from the Expo build page for a manual upload, or use the [Android CI/CD workflow](docs/android-releases.md). Pull requests run quality checks; a push to `prod` or a manual release from `main`/`prod` queues an EAS build and submission to Google Play internal testing. One-time Expo/Play credentials setup is required. Promote the tested bundle to production in Play Console.
+Download the completed bundle from the Expo build page for a manual upload, or use the [Android CI/CD workflow](docs/android-releases.md). Pull requests run quality checks; a push to `prod` or a manual release from `main`/`prod` queues an EAS build and submission to Google Play closed testing. One-time Expo/Play credentials setup is required. Promote the tested bundle to production in Play Console.
 
 For iOS, use `--platform ios`; EAS cloud builds avoid needing Xcode on your own machine. Apple signing, device registration for internal distribution, and Apple account requirements still apply. The project is linked to `@cyfamod_technologies/lfc-jahi-media` using its real Expo project ID. Production builds create a signed Android App Bundle with the production API origin and increment the Android version code.
 

@@ -6,10 +6,20 @@ This repository uses two GitHub Actions workflows and EAS cloud builds. Unlike t
 
 - Pull requests and pushes to `main`: install from the lockfile, lint, typecheck, run tests, and export the Android JavaScript/assets bundle. These checks do not compile native code.
 - Release: merge the tested changes into `prod`, or select **Actions → Release Android to Google Play → Run workflow** on `main` or `prod`. Other branches cannot release.
-- The release workflow reruns checks, then queues a signed production AAB on EAS with automatic submission of that exact build to Google Play **internal testing**.
-- Install through the Play internal tester link and verify startup, streaming, background audio, downloads, offline playback and message links. Promote the tested release to production in Play Console when ready.
+- The release workflow reruns checks, then queues a signed production AAB on EAS with automatic submission of that exact build to Google Play **closed testing**.
+- Install through the Play closed-testing opt-in link and verify startup, streaming, background audio, downloads, offline playback and message links. Promote the tested release to production in Play Console when ready.
 
 A green release workflow means EAS accepted the request, not that the build or submission finished. Follow the build/submission URLs in the Actions log or use the Expo dashboard. Native build failures and Google Play errors appear there. Do not retry blindly after a workflow timeout: check whether a build was already queued. Cloud builds consume your Expo build quota or credits.
+
+The submission profile targets the standard closed-testing track ID `alpha`. If your existing closed test uses a custom track ID, replace `submit.production.android.track` in `eas.json` with that exact ID before submitting. A track's display name may differ from its API ID. Check **Play Console → Testing → Closed testing → your track → Releases** and Expo's Submissions page for results.
+
+To submit an already completed build without rebuilding, run this from the project directory and select the intended build:
+
+```bash
+npx eas-cli@latest submit --platform android --profile production
+```
+
+Changing this configuration does not move an existing release or submission to another track.
 
 ## One-time setup
 
@@ -31,7 +41,7 @@ A green release workflow means EAS accepted the request, not that the build or s
 
    The local config currently contains version code **3**; check Play and EAS for any higher codes. EAS now owns the version code and increments it for each production build. `expo.version` in `app.json` remains the user-facing version and should be changed intentionally.
 5. Create/select the Play Console app with package `com.cyfamod.lfcjahi.media`. Create a Google service account, enable the Google Play Android Developer API and grant that account release access to this app. Upload its JSON key to **Expo project → Credentials → Android → application identifier → Google service account key for Expo Submit**, or configure it using `eas credentials` above. Store it in Expo; no JSON key belongs in this repository or GitHub.
-6. Complete Play listing/setup requirements and configure the internal tester list and opt-in link. If Google requires the app to remain a draft during initial setup, temporarily use `releaseStatus: "draft"` in `eas.json` and complete the release in Play Console. Check the Play App Signing certificate against the website's `assetlinks.json` before testing HTTPS app links.
+6. Complete Play listing/setup requirements and configure the closed-testing tester list and opt-in link. If Google requires the app to remain a draft during initial setup, temporarily use `releaseStatus: "draft"` in `eas.json` and complete the release in Play Console. Check the Play App Signing certificate against the website's `assetlinks.json` before testing HTTPS app links.
 7. Complete one interactive production build to resolve any credential/configuration prompts before relying on non-interactive CI:
 
    ```bash
@@ -40,7 +50,7 @@ A green release workflow means EAS accepted the request, not that the build or s
 
    This builds an AAB without submitting. The automated workflow builds its own new version; it does not select an arbitrary latest build.
 
-No EAS GitHub build trigger is needed in addition to these workflows. Enabling a second trigger for the same branch can duplicate builds. Keep `track: "internal"` for this pipeline; production rollout is a Play Console promotion of the tested bundle.
+No EAS GitHub build trigger is needed in addition to these workflows. Enabling a second trigger for the same branch can duplicate builds. Keep `track: "alpha"` for this pipeline; production rollout is a Play Console promotion of the tested bundle.
 
 ## Expo access errors
 
